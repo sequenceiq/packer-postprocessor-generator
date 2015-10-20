@@ -22,8 +22,7 @@ type Config struct {
 }
 
 type PostProcessor struct {
-	config    Config
-	artifacts []packer.Artifact
+	config Config
 }
 
 func (p *PostProcessor) Configure(raws ...interface{}) error {
@@ -74,10 +73,10 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 
 	data := struct {
 		Artifact packer.Artifact
-		Test     string
+		Config   Config
 	}{
 		Artifact: artifact,
-		Test:     "Hello",
+		Config:   p.config,
 	}
 
 	ui.Message("Generating ...")
