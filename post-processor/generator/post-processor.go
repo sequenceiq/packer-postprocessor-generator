@@ -3,6 +3,8 @@ package generator
 import (
 	"fmt"
 	"log"
+	"os"
+	"text/template"
 
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/helper/config"
@@ -20,7 +22,8 @@ type Config struct {
 }
 
 type PostProcessor struct {
-	config Config
+	config    Config
+	artifacts []packer.Artifact
 }
 
 func (p *PostProcessor) Configure(raws ...interface{}) error {
@@ -58,7 +61,31 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	ui.Message(fmt.Sprintf("Generating: '%s' from: '%s'", p.config.Output, p.config.Template))
 
 	ui.Message(fmt.Sprintf("Artifact: id:%s string:%s files:%#v", artifact.Id(), artifact.String(), artifact.Files()))
-	return artifact, true, nil
+
+	tmpl, err := template.ParseFiles(p.config.Template)
+	if err != nil {
+		return nil, true, fmt.Errorf("Failed to parse template: %s ", err)
+	}
+
+	out, err := os.Create(p.config.Output)
+	if err != nil {
+		return nil, true, fmt.Errorf("Failed to create file: %s", err)
+	}
+
+	data := struct {
+		Artifact packer.Artifact
+		Test     string
+	}{
+		Artifact: artifact,
+		Test:     "Hello",
+	}
+
+	ui.Message("Generating ...")
+	err = tmpl.Execute(out, data)
+	if err != nil {
+		return nil, true, fmt.Errorf("Template execution failed: %s", err)
+	}
+
 	a := &Artifact{
 		Path: p.config.Output,
 	}
