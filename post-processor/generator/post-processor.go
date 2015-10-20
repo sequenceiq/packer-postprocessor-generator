@@ -59,4 +59,8 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 
 	ui.Message(fmt.Sprintf("Artifact: id:%s string:%s files:%#v", artifact.Id(), artifact.String(), artifact.Files()))
 	return artifact, true, nil
+	a := &Artifact{
+		Path: p.config.Output,
+	}
+	return a, true, nil
 }
