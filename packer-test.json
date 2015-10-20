@@ -1,0 +1,17 @@
+{
+    "builders": [
+        {
+          "type": "docker",
+          "image": "alpine",
+          "export_path": "image.tar",
+          "run_command": ["-d", "-i", "-t", "{{.Image}}", "/bin/sh"]
+        }
+    ],
+
+    "post-processors":[
+        {
+          "type": "compress",
+          "output":"{{.BuildName}}.zip"
+        }
+    ]
+}
