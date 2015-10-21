@@ -13,11 +13,11 @@ type Artifact struct {
 }
 
 func (a *Artifact) BuilderId() string {
-	return BuilderId
+	return fmt.Sprintf("builder.genrator")
 }
 
-func (*Artifact) Id() string {
-	return ""
+func (a *Artifact) Id() string {
+	return a.Path
 }
 
 func (a *Artifact) Files() []string {
