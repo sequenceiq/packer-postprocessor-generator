@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/mitchellh/packer/common"
@@ -55,11 +56,40 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 	return nil
 }
 
+func getAmiMap(artifact packer.Artifact) map[string]string {
+
+	meta := artifact.State("atlas.artifact.metadata")
+	if meta == nil {
+		log.Println("Artifact has no AWS info: artifact.State(atlas.artifact.metadata)")
+		return nil
+	}
+
+	regionMap, ok := meta.(map[interface{}]interface{})
+	if !ok {
+		return nil
+	}
+
+	amiMap := make(map[string]string)
+	for reg, ami := range regionMap {
+		r, ok := reg.(string)
+		if !ok {
+			log.Printf("Couldnt convert Region to string: %#v \n", reg)
+		}
+		a, ok := ami.(string)
+		if !ok {
+			log.Printf("Couldnt convert Ami to string: %#v \n", ami)
+		}
+		r = strings.TrimPrefix(r, "region.")
+		amiMap[r] = a
+	}
+	return amiMap
+}
+
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
 
 	ui.Message(fmt.Sprintf("Generating: '%s' from: '%s'", p.config.Output, p.config.Template))
 
-	ui.Message(fmt.Sprintf("Artifact: id:%s string:%s files:%#v", artifact.Id(), artifact.String(), artifact.Files()))
+	//ui.Message(fmt.Sprintf("Artifact: id:%s string:%s files:%#v", artifact.Id(), artifact.String(), artifact.Files()))
 
 	tmpl, err := template.ParseFiles(p.config.Template)
 	if err != nil {
@@ -71,12 +101,18 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 		return nil, true, fmt.Errorf("Failed to create file: %s", err)
 	}
 
+	amiMap := getAmiMap(artifact)
+	ui.Say(fmt.Sprintf("AWS amimap: %#v", amiMap))
 	data := struct {
+		Test     string
 		Artifact packer.Artifact
 		Config   Config
+		Meta     interface{}
 	}{
+		Test:     fmt.Sprintf("ok"),
 		Artifact: artifact,
 		Config:   p.config,
+		Meta:     amiMap,
 	}
 
 	ui.Message("Generating ...")
