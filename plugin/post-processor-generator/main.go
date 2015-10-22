@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/mitchellh/packer/packer/plugin"
-	"github.com/sequenceiq/packer-postprocessor-template/post-processor/generator"
+	"github.com/sequenceiq/packer-postprocessor-generator/post-processor/generator"
 )
 
 func main() {
