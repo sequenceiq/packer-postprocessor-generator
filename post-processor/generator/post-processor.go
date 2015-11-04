@@ -10,6 +10,7 @@ import (
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/helper/config"
 	"github.com/mitchellh/packer/packer"
+	"github.com/mitchellh/packer/provisioner/shell-local"
 	"github.com/mitchellh/packer/template/interpolate"
 )
 
@@ -18,6 +19,9 @@ type Config struct {
 
 	Template string `mapstructure:"template"`
 	Output   string `mapstructure:"output"`
+
+	// ExecuteCommand is the command used to execute the command.
+	ExecuteCommand []string `mapstructure:"execute_command"`
 
 	ctx interpolate.Context
 }
@@ -96,10 +100,17 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 		return nil, true, fmt.Errorf("Failed to parse template: %s ", err)
 	}
 
+	info, err := os.Stat(p.config.Template)
+	if err != nil {
+		return nil, true, fmt.Errorf("Couldn't get Stat of file: %s", err)
+	}
+
 	out, err := os.Create(p.config.Output)
 	if err != nil {
 		return nil, true, fmt.Errorf("Failed to create file: %s", err)
 	}
+
+	out.Chmod(info.Mode())
 
 	amiMap := getAmiMap(artifact)
 	ui.Say(fmt.Sprintf("AWS amimap: %#v", amiMap))
@@ -119,6 +130,36 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	err = tmpl.Execute(out, data)
 	if err != nil {
 		return nil, true, fmt.Errorf("Template execution failed: %s", err)
+	}
+
+	ui.Message(fmt.Sprintf("p.config.ExecuteCommand: %#v", p.config.ExecuteCommand))
+	if len(p.config.ExecuteCommand) > 0 {
+		// Make another communicator for local
+		comm := &shell.Communicator{
+			Ctx:            p.config.ctx,
+			ExecuteCommand: p.config.ExecuteCommand,
+		}
+
+		// Build the remote command
+		cmd := &packer.RemoteCmd{Command: p.config.Output}
+
+		ui.Say(fmt.Sprintf(
+			"Executing local command: %s",
+			p.config.Output))
+		if err := cmd.StartWithUi(comm, ui); err != nil {
+			return nil, true, fmt.Errorf(
+				"Error executing command: %s\n\n"+
+					"Please see output above for more information.",
+				p.config.Output)
+		}
+		if cmd.ExitStatus != 0 {
+			return nil, true, fmt.Errorf(
+				"Erroneous exit code %d while executing command: %s\n\n"+
+					"Please see output above for more information.",
+				cmd.ExitStatus,
+				p.config.Output)
+		}
+
 	}
 
 	a := &Artifact{
